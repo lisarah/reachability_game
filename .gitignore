@@ -164,6 +164,7 @@ dmypy.json
 # Pyre type checker
 .pyre/
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 # pytype static type analyzer
 .pytype/
@@ -179,3 +180,6 @@ cython_debug/
 #.idea/
 =======
 >>>>>>> 4e53960 (Initial commit)
+=======
+traj_ouput_1657029819.mp4
+>>>>>>> 9350eeb (MDP congestion game model and pick up delivery example. 2 modes version working only at the moment.)
