@@ -92,6 +92,8 @@ def init_grid_plot(Rows, Columns, base_color):
     axis.xaxis.set_visible(False)  
     axis.yaxis.set_visible(False)
     return axis, value_grids, f
+
+
 def draw_policies_interpolate(Rows, Columns, p_1, p_2, axis):
     length = 0.3
     lookup = {

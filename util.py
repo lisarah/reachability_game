@@ -13,7 +13,17 @@ def random_initial_policy_finite(S, A, T, player_num):
         for s in range(S):
                 for p in range(player_num):
                     action = np.random.randint(0, A-1)
-                    policy[s, (s)*A + action, t, p] = 1.
+                    policy[s, s*A + action, t, p] = 1.
+    return policy
+
+def scrolling_policy(S, A, T, player_num): # always go to the right/left
+    policy = np.zeros((S, S*A, T, player_num)) # S x A
+    # random initial policy
+    for t in range(T):
+        for s in range(S):
+                actions = [1, 0]# see look up table in mdp_state-action.transitions
+                for p in range(player_num):
+                    policy[s, s*A + actions[p], t, p] = 1.
     return policy
 
 def value_finite(P,pi,C, gamma):
@@ -144,6 +154,7 @@ def nonErgodicToy():
     Returns a rectangular MDP that is non-ergodic
     Grid with row = M, column = N, 
     p = main probability of going down a direction
+    with_stay = if the agent can choose to stay in the current square
 """
 def nonErgodicMDP(M, N, p, with_stay=False):
     A = 5 if with_stay else 4

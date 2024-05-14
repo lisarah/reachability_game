@@ -5,111 +5,49 @@ import util as ut
 import random
 
 
-def pick_up_delivery_dynamics(Rows, Columns, rate, drop_offs, pick_ups, p=0.98):
-    P_0 = ut.nonErgodicMDP(Rows, Columns, p=p, with_stay=True)
-    S_half, S_halfA = P_0.shape
-    A = int(S_halfA/S_half)
-    S = S_half*2
-    P = np.zeros((S, S*A))
-    P[:S_half, :S_halfA] = 1*P_0
-    P[S_half:, S_halfA:] = 1*P_0
-    # transition from pickup to delivery
-    # pick_up_row = range(S_half - Columns, S_half)
-    for s in pick_ups:
-        # sa = slice(s*A,(s+1)*A)
-        orig_probability = P[s, :]*1
-        P[s, :] = (1 - rate) * orig_probability
-        P[s + S_half, :] += rate * orig_probability
-        # P[s, s*A :(s+1)*A] = orig_probability[s*A:(s+1)*A] # can't enter drop off mode from drop off mode
-    # delivery_row = range(S_half,  S_half+Columns)
-    for s in drop_offs:
-        P[s, :] += P[s + S_half, :]*1
-        P[s + S_half, :] = 0
-        
-    return P
+"""
+    Returns a rectangular MDP that is non-ergodic
+    Grid with row = M, column = N, 
+    p = main probability of going down a direction
+    with_stay = if the agent can choose to stay in the current square
+"""
+def transitions(M, N, p, with_stay=False):
+    A = 5 if with_stay else 4
+    P = np.zeros((N*M, N*M*A))
+    for i in range(M):
+        for j in range(N):
+            s = i*N + j
+            left = i*N + j-1
+            right = i*N + j + 1
+            top = (i-1)*N + j
+            bottom = (i+1)*N + j
+            stay = i*N +j
+            
+            valid = []
+            if s%N != 0:
+                valid.append(left)
+            if s%N != N-1:
+                valid.append(right)
+            if s >= N:
+                valid.append(top)
+            if s < (M*N - N):
+                valid.append(bottom)
+    
+            lookup = {0: left, 1: right, 2: top, 3: bottom, 4:stay}
+            for a in range(A):
+                SA = s*A+ a
+                P = ut.nonErgodic_assignP(a, SA, P,p, valid, lookup, s)   
+    return P; 
 
-def pick_up_multi_delivery_dynamics(Rows, Columns, rate, delivery_dist, 
-                                    pick_up, drop_off_states):
-    P_0 = ut.nonErgodicMDP(Rows, Columns, p=0.98, with_stay=True)
-    modes = len(delivery_dist)
-    S_sec, _ = P_0.shape
-    P = np.kron(np.eye(modes+1), P_0)
-    # print(f'transition_sizes are {P.shape}')
-    # print(f'transition current summation {np.ones(S_sec*(modes+1)).T.dot(P)}')
-    # transition from pickup to delivery    
-    drop_off_p = (1 - rate) * P[pick_up, :]
-    P[pick_up, :] = rate * P[pick_up, :]
-    # probability of entering delivery mode
-    for m_ind in range(modes):
-        P[pick_up + S_sec*(m_ind+1), :] += delivery_dist[m_ind] * drop_off_p
 
-    # transition back to pick up from each delivery spot
-    for mode in range(modes):
-        delivery_state = drop_off_states[mode] + (mode+1)*S_sec
-        P[drop_off_states[mode], :] += P[delivery_state, :]
-        P[delivery_state, :] = 0
-        
-    return P
-
-def transition_mat_to_tensor(P):
-    S, SA = P.shape
-    A = int(SA/S)
-    P_tensor  = np.zeros((S,S,A))
-    for s in range(S):
-        for a in range(A):
-            mat_ind = a + s*A
-            P_tensor[:, s, a] = P[:, mat_ind]
-    return P_tensor
-
-def pick_up_multi_delivery_tensor(Rows, Columns, rate, delivery_dist, 
-                                    pick_up, drop_off_states):
-    P_0 = ut.nonErgodicMDP(Rows, Columns, p=0.98, with_stay=True)
-    modes = len(delivery_dist)
-    S_sec, _ = P_0.shape
-    P = np.kron(np.eye(modes+1), P_0)
-    # print(f'transition_sizes are {P.shape}')
-    # print(f'transition current summation {np.ones(S_sec*(modes+1)).T.dot(P)}')
-    # transition from pickup to delivery    
-    drop_off_p = (1 - rate) * P[pick_up, :]
-    P[pick_up, :] = rate * P[pick_up, :]
-    # probability of entering delivery mode
-    for m_ind in range(modes):
-        P[pick_up + S_sec*(m_ind+1), :] += delivery_dist[m_ind] * drop_off_p
-
-    # transition back to pick up from each delivery spot
-    for mode in range(modes):
-        delivery_state = drop_off_states[mode] + (mode+1)*S_sec
-        P[drop_off_states[mode], :] += P[delivery_state, :]
-        P[delivery_state, :] = 0
-        
-    return P
-
-def probability_to_dict(S, A, P_arr):
-    # probability dictionary has form:
-    # key = (s, a), value = (probability, state_num)
-    P_dict = {}
-    for s in range(S):
-        for a in range(A):
-            P_dict[(s,a)] = []
-            for s_dest in range(S):
-                if P_arr[s_dest, s*A + a] > 0:
-                    P_dict[(s,a)].append((P_arr[s_dest, s*A + a], s_dest))
-    return P_dict
-
-def pick_up_delivery_multi_cost(Rows, Columns, A, T, pick_up_state, deliveries, 
-                                p_num, minimize=True):
-    targ_rew = 0 if minimize else 1.
-    S_sec = Rows*Columns
-    S = S_sec * (len(deliveries) + 1)
-    if minimize:
-        C = np.ones((S, A, T+1))
-    else:
-        C = np.zeros((S, A, T+1))
+def cost(S, A, T, target_s,  minimize=True):
+    C = np.ones((S, A, T+1)) if minimize else np.zeros((S, A, T+1))
+    # if minimize:
+    #     C = np.ones((S, A, T+1))
+    # else:
+    #     C = np.zeros((S, A, T+1))
     # cost for agents in pick up mode
-    C[pick_up_state, :, :] = targ_rew
-    # cost for agents delivery mode
-    for mode in range(len(deliveries)):
-        C[(mode+1)*S_sec + deliveries[mode], :, :] = targ_rew
+    C[target_s, :, :] = 0 if minimize else 1.
     return C
 
 
@@ -163,6 +101,17 @@ def pol2dist(policy, x, P, T):
 
     return y
 
+def occupancy_list(policies, P, T, p_num, initial_locs):
+    # policy = ut.random_initial_policy_finite(Rows, Columns, A, T+1, p_num)
+    S, SA = P[0].shape
+    initial_x = [np.zeros(S) for _ in range(p_num)]
+    x = [[] for _ in range(p_num)]
+    for p in range(p_num):
+        initial_x[p][initial_locs[p]] = 1.
+        x[p].append(pol2dist(policies[:,:,:,p], initial_x[p], P[p], T))
+    return x, initial_x
+
+
 def state_congestion_faster(Rows, Columns, modes, A, T, y):
     scal = 40.
     c_cost = np.zeros((modes*Rows*Columns, A, T+1))
@@ -203,16 +152,7 @@ def start_at_locs(pols, p_num, drop_offs, P, S, T):
         x[p].append(pol2dist(pols[:,:,:,p], initial_x[p], P[p], T))
     return x, initial_x
 
-def policy_list(policies, P, T, p_num, Columns):
-    # policy = ut.random_initial_policy_finite(Rows, Columns, A, T+1, p_num)
-    S, SA = P[0].shape
-    initial_x = [np.zeros(S) for _ in range(p_num)]
-    x_init_state  = random.sample(range(Columns), p_num)
-    x = [[] for _ in range(p_num)]
-    for p in range(p_num):
-        initial_x[p][x_init_state[p]] = 1.
-        x[p].append(pol2dist(policies[:,:,:,p], initial_x[p], P[p], T))
-    return x, initial_x
+
 
 
 def execute_policy(initial_x, P, pols, T, targets):
