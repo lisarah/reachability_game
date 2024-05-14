@@ -10,6 +10,7 @@ import util as ut
 import matplotlib.pyplot as plt
 import pandas as pd
 import MDP_algorithms.mdp_state_action as mdp
+import MDP_algorithms.value_iteration as vi
 import random, time
 import seaborn as sns
 import matplotlib as mpl
@@ -40,12 +41,36 @@ A = int(SA/S)
 
 # cost matrix : S x A x (T+1)
 Cs = [mdp.cost(S, A, T, targ_raw_inds[p],  minimize=False) 
-     for p in range(player_num)]
+      for p in range(player_num)]
 
 # initial policies: x: list, each element: T
 pols = ut.scrolling_policy(S, A, T+1, player_num)
 initial_locs = [0, Columns-1]
 x, initial_x = mdp.occupancy_list(pols, Ps, T, player_num, initial_locs)
+
+
+# reachability: 
+Vs = [None for _ in range(player_num)]
+pis = [None for _ in range(player_num)]
+for p in range(player_num):
+    V, pi = vi.finite_reachability(Ps[0], T, targ_raw_inds)
+    Vs[p] = V
+    pis[p] = pi    
+
+# visualization
+total_player_costs = np.zeros(Columns * Rows)
+total_player_costs[targ_raw_inds] = 1.
+color_map, norm, _ = vs.color_map_gen(total_player_costs) 
+
+ax, value_grids, f = vs.init_grid_plot(Rows, Columns, total_player_costs)
+plt.show(block=False)
+
+ 
+# print('visualizing now')
+vs.animate_traj(f'traj_ouput_{int(time.time())}.mp4', f, initial_locs, pols, 
+                total_player_costs, value_grids, A, Rows, Columns, Ps, Time=T)
+
+
 
 # # run frank-wolfe
 # Iterations = 20 #100 # number of Frank wolf iterations
@@ -147,17 +172,7 @@ x, initial_x = mdp.occupancy_list(pols, Ps, T, player_num, initial_locs)
 # # p1_costs = list(np.sum(cost_array[0][Iterations - 1, :,:,T],axis=1))
 # # p1_values = V_hist_array[0,Iterations - 1, :, T-1]
 
-total_player_costs = np.zeros(Columns * Rows)
-total_player_costs[targ_raw_inds] = 1.
-color_map, norm, _ = vs.color_map_gen(total_player_costs) 
 
-ax, value_grids, f = vs.init_grid_plot(Rows, Columns, total_player_costs)
-plt.show(block=False)
-
- 
-# print('visualizing now')
-vs.animate_traj(f'traj_ouput_{int(time.time())}.mp4', f, initial_locs, pols, 
-                total_player_costs, value_grids, A, Rows, Columns, Ps, Time=T)
     
     
 
