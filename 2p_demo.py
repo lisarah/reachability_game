@@ -2,7 +2,7 @@
 """
 Created on Fri Mar  4 17:45:15 2022
 
-@author: craba
+@author: Sarah Li
 """
 import numpy as np
 import visualization as vs
