@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def finite_reachability(P, T, targ_s): # always maximizing
-    S, _ = P.shape
+    S, _, A = P.shape
     
     Vs = np.zeros((S, T+1)) # plural refers to time
     Vs[targ_s, T] = 1. 

@@ -13,7 +13,8 @@ import random
 """
 def transitions(M, N, p, with_stay=False):
     A = 5 if with_stay else 4
-    P = np.zeros((N*M, N*M*A))
+    S = N*M
+    P = np.zeros((S, S, A)) # destination state, origin state, action
     for i in range(M):
         for j in range(N):
             s = i*N + j
@@ -35,8 +36,7 @@ def transitions(M, N, p, with_stay=False):
     
             lookup = {0: left, 1: right, 2: top, 3: bottom, 4:stay}
             for a in range(A):
-                SA = s*A+ a
-                P = ut.nonErgodic_assignP(a, SA, P,p, valid, lookup, s)   
+                P[:,s,a] = ut.nonergodic_p(a, S, p, valid, lookup, s)   
     return P; 
 
 

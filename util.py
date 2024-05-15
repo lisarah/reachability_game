@@ -258,6 +258,33 @@ def nonErgodic_assignP(a, SA, P, p, valid, lookup,s):
     associated with action a, state s, state-action index SA, 
     and probability p of taking valid action
     
+    ** this one assigns probability 1 to return to state s if 
+    direction is not valid
+    lookup = the dictionary to look up direction corresponding to action
+             is usually lookup = {0: left, 1: right, 2: top, 3: bottom}
+    
+    valid = valid directions to go for this state
+"""   
+def nonergodic_p(a, S, p, valid, lookup,s):
+    transition = np.zeros((S))
+    if lookup[a] not in valid:
+        transition[s] = p
+        pBar = (1. - p) /(len(valid));
+        for neighbour in valid:
+                transition[neighbour] = pBar;
+    else:
+        transition[lookup[a]] = p;
+        pBar = (1. - p) /(len(valid)-1);
+        for neighbour in valid:
+            if neighbour != lookup[a]:
+                transition[neighbour] = pBar;
+    return transition
+
+"""
+    given direction and look up table, derive the correct probability column
+    associated with action a, state s, state-action index SA, 
+    and probability p of taking valid action
+    
     ** if direction is not valid, returns equal probability of going
     to neighbouring states
     lookup = the dictionary to look up direction corresponding to action

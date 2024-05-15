@@ -26,7 +26,7 @@ mpl.rc('legend', fontsize='small')
 
 Columns = 10
 Rows = 5
-T = 10
+T = 15
 player_num = 2
 # set up space 
 targ_col = [Columns-1, 0] #, 0, 4, 0, 5, 1
@@ -34,10 +34,9 @@ targ_row = [Rows - 1, Rows - 1]
 targ_raw_inds = [row*Columns + col for row, col in zip(targ_row, targ_col)]
 
 # transition matrix : S x SA
-Ps = [mdp.transitions(Rows, Columns, p=0.8, with_stay=True) 
+Ps = [mdp.transitions(Rows, Columns, p=0.95, with_stay=True) 
       for p in range(player_num)]
-S, SA = Ps[0].shape
-A = int(SA/S)
+S, _, A = Ps[0].shape
 
 # cost matrix : S x A x (T+1)
 Cs = [mdp.cost(S, A, T, targ_raw_inds[p],  minimize=False) 
@@ -46,14 +45,14 @@ Cs = [mdp.cost(S, A, T, targ_raw_inds[p],  minimize=False)
 # initial policies: x: list, each element: T
 pols = ut.scrolling_policy(S, A, T+1, player_num)
 initial_locs = [0, Columns-1]
-x, initial_x = mdp.occupancy_list(pols, Ps, T, player_num, initial_locs)
+# x, initial_x = mdp.occupancy_list(pols, Ps, T, player_num, initial_locs)
 
 
 # reachability: 
 Vs = [None for _ in range(player_num)]
 pis = [None for _ in range(player_num)]
 for p in range(player_num):
-    V, pi = vi.finite_reachability(Ps[0], T, targ_raw_inds)
+    V, pi = vi.finite_reachability(Ps[0], T, targ_raw_inds[p])
     Vs[p] = V
     pis[p] = pi    
 
@@ -67,8 +66,8 @@ plt.show(block=False)
 
  
 # print('visualizing now')
-vs.animate_traj(f'traj_ouput_{int(time.time())}.mp4', f, initial_locs, pols, 
-                total_player_costs, value_grids, A, Rows, Columns, Ps, Time=T)
+vs.animate_traj(f'traj_ouput_{int(time.time())}.mp4', f, initial_locs, pis, 
+                total_player_costs, value_grids, Rows, Columns, Ps, Time=T-1)
 
 
 

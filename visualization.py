@@ -179,44 +179,49 @@ def color_map_gen(base_color):
     return color_map, norm, sm
 
 def animate_traj(file_name, f, p_inits, policies, base_color, value_grids, 
-             A, Rows, Columns, P, Time = 100):
+                 Rows, Columns, P, Time = 100):
     p_iter = range(len(p_inits))
     
     p_trajs  = [[p_inits[p]] for p in p_iter]
-    S, _ = P[0].shape
+    S, _, A = P[0].shape
     color_map, norm, _ = color_map_gen(base_color)
     white_color = np.zeros(base_color.shape)
     for t in range(Time):
-        flat_policy = np.sum(policies[:,:,t,:], axis=0)
+        # flat_policy = np.sum(policies[:,:,t,:], axis=0)
         for p_ind in p_iter:
             cur_s = p_trajs[p_ind][-1] # pick up mode
-            next_a = np.random.choice(
+            next_a = int(policies[p_ind][cur_s, t]) # deterministic action
+            
+            #np.random.choice(
                 # np.arange(0,A),p=policies[cur_s*A:(cur_s+1)*A, p_ind])
-                np.arange(0,A),p=flat_policy[cur_s*A:(cur_s+1)*A, p_ind])
+    
             
             next_s = np.random.choice(np.arange(0,S), 
-                                          p=P[p_ind][:, cur_s*A+next_a])
+                                          p=P[p_ind][:, cur_s, next_a])
             p_trajs[p_ind].append(next_s)
-        
+        # print(f'\r p1 next state: {next_s[0]},    '
+        #           f'p2 next state: {next_s[1]},    ')
     def animate(i):
         if i == 0:
-            states = [p_trajs[p][0] %(Rows*Columns) for p in p_iter]
+            states = [p_trajs[p][0] % S for p in p_iter]
             next_states = states
             # state_1 = p1_traj[0]
             # state_2 = p2_traj[0]
         else:
-            states = [p_trajs[p][i-1] %(Rows*Columns) for p in p_iter]
-            next_states  = [p_trajs[p][i] %(Rows*Columns) for p in p_iter]
+            states = [p_trajs[p][i-1] % S for p in p_iter]
+            next_states  = [p_trajs[p][i] % S for p in p_iter]
             # state_1 = p1_traj[i-1]
             # state_2 = p2_traj[i-1]
                 
-        for p_ind in range(len(states)):
-            if states[p_ind] >= Rows*Columns:
-                if states[p_ind] <  Rows*Columns + Columns: # top row
-                    print(f'{p_ind} in pick up mode')
-                states[p_ind] = states[p_ind] - Rows*Columns
-            elif states[p_ind] >= Rows*Columns - Columns:  # bottom row
-                print(f'{p_ind} in delivery mode')
+        # for p_ind in range(len(states)):
+        #     if states[p_ind] >= S:
+        #         if states[p_ind] <  S + Columns: # top row
+        #             print(f'{p_ind} in pick up mode')
+        #         states[p_ind] = states[p_ind] - Rows*Columns
+        #     elif states[p_ind] >= Rows*Columns - Columns:  # bottom row
+        #         print(f'{p_ind} in delivery mode')
+
+        
         update_colors(value_grids, white_color, next_states, states, 
                       color_map, norm, Rows, Columns)
   
