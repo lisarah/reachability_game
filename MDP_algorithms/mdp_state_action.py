@@ -80,36 +80,30 @@ def set_up_cost(Rows, Columns, A, T, target_col, target_row,  p_num,
         C[p][target_row*Columns + target_col[p], :, :] = targ_rew
     return C
     
-def pol2dist(policy, x, P, T): 
+def pol2dist(policy, x_0, P): 
     # policy is a 3D array for player
     # x is player p's initial state distribution at t = 0
     # returns player P's final distribution
-    S, SA, _ = policy.shape
-    x_arr = np.zeros((len(x), T+1))
-    x_arr[:, 0] = x
-        
-    markov_chains = np.einsum('ij, kjl->ikl', P, policy)
-    # print(f'x_shape {x_arr.shape}')
-    # print(f' markov chain shape {markov_chains[:, :, 0].shape}')
+    S, T = policy.shape
+    x_arr = np.zeros((S, T+1))
+    x_arr[:, 0] = x_0
+    
     for t in range(T):
-        # x is the time state_density
-        # print(f'x shape is {markov_chains[:, :, t].dot(x_arr[:, t]).shape}')
-        x_arr[:, t+1] = markov_chains[:, :, t].dot(x_arr[:, t]) 
-    # print(f'policy {policy.shape} x_arr {x_arr.shape}')
-    # print(f' t is {T}')
-    y = np.einsum('sat, st->at', policy, x_arr)
+        # x_arr is the time state_density
+        markov_chain = np.zeros((S,S))
+        for cur_s in range(S):
+            markov_chain[:, cur_s] = P[:, cur_s, int(policy[cur_s,t])]
+        x_arr[:, t+1] = markov_chain.dot(x_arr[:, t]) 
 
-    return y
+    return x_arr
 
-def occupancy_list(policies, P, T, p_num, initial_locs):
+def occupancy(policy, P, initial_loc):
     # policy = ut.random_initial_policy_finite(Rows, Columns, A, T+1, p_num)
-    S, SA = P[0].shape
-    initial_x = [np.zeros(S) for _ in range(p_num)]
-    x = [[] for _ in range(p_num)]
-    for p in range(p_num):
-        initial_x[p][initial_locs[p]] = 1.
-        x[p].append(pol2dist(policies[:,:,:,p], initial_x[p], P[p], T))
-    return x, initial_x
+    S, _, _ = P.shape
+    initial_x = np.zeros(S)
+    initial_x[initial_loc] = 1.
+    x = pol2dist(policy, initial_x, P)
+    return x
 
 
 def state_congestion_faster(Rows, Columns, modes, A, T, y):

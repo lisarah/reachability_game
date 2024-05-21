@@ -26,6 +26,18 @@ def scrolling_policy(S, A, T, player_num): # always go to the right/left
                     policy[s, s*A + actions[p], t, p] = 1.
     return policy
 
+def scrolling_policy_flat(S, T): # always go to the right/left
+    policy = np.zeros((S, T)) # S x A
+    # random initial policy
+    for t in range(T):
+        for s in range(S):
+            policy[s,  t] = 1.
+    return policy
+
+def print_occupancy(x):
+    for data in x:
+        print('{:9.3f}'.format(data))
+    
 def value_finite(P,pi,C, gamma):
     # pi : S \times  \times T
     S, SA, T = pi.shape

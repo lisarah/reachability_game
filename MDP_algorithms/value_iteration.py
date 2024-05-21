@@ -2,17 +2,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def finite_reachability(P, T, targ_s): # always maximizing
+def finite_reachability(P, T, targ_s, opponent_x=None): # always maximizing
     S, _, A = P.shape
-    
+    opp_x = opponent_x if opponent_x is not None else np.zeros((S,T+1))
     Vs = np.zeros((S, T+1)) # plural refers to time
     Vs[targ_s, T] = 1. 
+    Vs = np.multiply(Vs, (1 - opp_x[targ_s, T]))
     pis = np.zeros((S, T)) # plural refers to time
     for t in range(T):
         t_ind =  T - 1 - t
+        # Vs[:, t_ind+1] = np.multiply(Vs[:, t_ind+1], opp_x[:, t_ind+1])
         BO = np.einsum('ijk,i',P, Vs[:, t_ind+1])
+
         pis[:,t_ind] = np.argmax(BO, axis=1)
-        Vs[:, t_ind] =  np.max(BO, axis=1)
+        Vs[:, t_ind] = 1. + np.multiply(np.max(BO, axis=1), 
+                         np.ones((1,S)) - opp_x[:, t_ind])
     return Vs, pis
     
 def value_iteration_tensor(P,c, T, minimize = True, g = 1.):

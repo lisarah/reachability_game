@@ -11,63 +11,151 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import MDP_algorithms.mdp_state_action as mdp
 import MDP_algorithms.value_iteration as vi
-import random, time
 import seaborn as sns
+import pandas as pd
 import matplotlib as mpl
+import potential_games as game
+import os
 import time
+
+os_path = '/Users/huilih/anaconda3/bin:/Users/huilih/anaconda3/condabin:' \
+          '/opt/homebrew/bin:/opt/homebrew/sbin:/Applications/Sublime Text.' \
+          'app/Contents/SharedSupport/bin:/usr/local/bin:/System/Cryptexes/' \
+          'App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple. ' \
+          'security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/' \
+          'com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/' \
+              'run/com.apple.security.cryptexd/codex.system/bootstrap/usr/' \
+                  'appleinternal/bin:/Library/TeX/texbin'
+os.environ["PATH"] = os_path
 
 
 """ Format matplotlib output to be latex compatible with gigantic fonts."""
 mpl.rc('font',**{'family':'serif'})
-mpl.rc('text', usetex=False) # change this back later, latex not found here.
+mpl.rc('text', usetex=True) # change this back later, latex not found here.
 mpl.rcParams.update({'font.size': 15})
 mpl.rc('legend', fontsize='small')
-
+# plt.rcParams.update(plt.rcParamsDefault)
+# plt.rcParams.update({
+#     'text.usetex': True,
+#     'font.family': 'serif',
+#     'font.size':15
+# })
 
 Columns = 10
 Rows = 5
-T = 15
+T = 20
 player_num = 2
-# set up space 
-targ_col = [Columns-1, 0] #, 0, 4, 0, 5, 1
-targ_row = [Rows - 1, Rows - 1]
-targ_raw_inds = [row*Columns + col for row, col in zip(targ_row, targ_col)]
 
-# transition matrix : S x SA
-Ps = [mdp.transitions(Rows, Columns, p=0.95, with_stay=True) 
-      for p in range(player_num)]
-S, _, A = Ps[0].shape
+# set up trial
+trial_potentials = []
+trial_no_collisions = []
+trial_data = pd.DataFrame({})
 
-# cost matrix : S x A x (T+1)
-Cs = [mdp.cost(S, A, T, targ_raw_inds[p],  minimize=False) 
-      for p in range(player_num)]
+change_horizon = [(0.9, 5*i+1) for i in range(10)]
+change_entropy = [(0.1*(i+1), 15) for i in range(10)]
+for action_entropy, T in change_horizon:
+    MCs = 100 # monte carlo trials
+    
+    # ----- defining MDP -----#
+    Ps = [mdp.transitions(Rows, Columns, p=action_entropy, with_stay=True) 
+          for p in range(player_num)]
+    S, _, A = Ps[0].shape
+    pols = ut.scrolling_policy(S, A, T+1, player_num)
+    for tr in range(MCs):
+        # ----- setting target state/initial state ------ #
+        targs_x0s = np.random.choice(range(Columns*Rows), 
+                                     size=player_num*2, replace=False) 
+        targ_raw_inds = targs_x0s[:player_num]           
+        x_0s = targs_x0s[player_num:]
+        
+        # turn targets into sinks
+        for p in range(player_num):
+            Ps[p][:, targ_raw_inds[p], 4] = np.zeros((S))
+            Ps[p][targ_raw_inds[p], targ_raw_inds[p], 4] = 1.
+            
+        # iterative best response
+        Vs = [None for _ in range(player_num)]
+        pols = ut.scrolling_policy_flat(S,  T+1)
+        pis = [pols for _ in range(player_num)]
+        xs = [mdp.occupancy(pis[p], Ps[p],  x_0s[p]) for p in range(player_num)]
+        potential = []
+        no_collisions = []
+        pot, no_col = game.potential(xs, targ_raw_inds)
+        potential.append(pot)
+        no_collisions.append(no_col)
+        
+        BR_iter = 5
+        for ind in range(BR_iter):
+            for p in range(player_num):
+                opponent = (p+1)%player_num
+                V, pi = vi.finite_reachability(Ps[0], T, targ_raw_inds[p], xs[opponent]) # 
+                Vs[p] = V
+                pis[p] = pi  
+                xs[p] = mdp.occupancy(pis[p], Ps[p],  x_0s[p]) 
+                if isinstance(xs[0], np.ndarray) and isinstance(xs[1], np.ndarray):
+                    pot, no_col = game.potential(xs, targ_raw_inds)
+                    potential.append(pot)
+                    no_collisions.append(no_col)
+        trial_potentials.append(potential)
+        trial_no_collisions.append(no_collisions)
+        trial_data = pd.concat([trial_data, pd.DataFrame({
+            'Trial': [tr]*len(potential), 
+            'BR_Iteration': [i for i in range(len(potential))],
+            'Potential': [p for p in potential],
+            'Collision': [1 - no_col for no_col in no_collisions],
+            'Horizon':[T]*len(potential),
+            'Action Entropy':[action_entropy]*len(potential), 
+            'P1 s_0': [x_0s[0]]*len(potential),
+            'P2 s_0': [x_0s[1]]*len(potential),
+            'P1 s_T': [x_0s[0]]*len(potential),
+            'P2 s_T': [x_0s[1]]*len(potential)})], ignore_index=True)
+        # trial_data = pd.concat([trial_data, pd.DataFrame({
+        #     'Trial': [tr]*len(potential)*2, 
+        #     'BR_Iteration': [i for i in range(len(potential))]*2,
+        #     'Probability': [p for p in potential] + [1 - no_col for no_col in no_collisions],
+        #     'Metric' : ['Potential']*len(potential) + ['Collision Likelihood']*len(potential),
+        #     'Horizon':[T]*2*len(potential),
+        #     'Action Entropy':[action_entropy]*len(potential)*2, 
+        #     'P1 s_0': [x_0s[0]]*len(potential)*2,
+        #     'P2 s_0': [x_0s[1]]*len(potential)*2,
+        #     'P1 s_T': [x_0s[0]]*len(potential)*2,
+        #     'P2 s_T': [x_0s[1]]*len(potential)*2})], ignore_index=True)
+    
+sns.set_style("darkgrid")
+plot_1 = sns.relplot(kind="line",
+    height = 5, aspect = 1.5, # col='N', 
+    x="BR_Iteration", y='Collision', hue='Horizon', # style='type',   errorbar=("se", 5), 
+    data=trial_data,
+    # palette=sns.color_palette(),
+);plt.show(block=False); # plt.yscale('log'); # plt.xscale('log');  #  
+# plot_1 = sns.relplot(kind="line",
+#     height = 5, aspect = 1.5, # col='N', 
+#     x="BR_Iteration", y='Probability', hue='Metric', # style='type',   errorbar=("se", 5), 
+#     data=trial_data,
+#     # palette=sns.color_palette(),
+# );  plt.show(block=False); # plt.xscale('log'); plt.yscale('log'); #  
 
-# initial policies: x: list, each element: T
-pols = ut.scrolling_policy(S, A, T+1, player_num)
-initial_locs = [0, Columns-1]
-# x, initial_x = mdp.occupancy_list(pols, Ps, T, player_num, initial_locs)
+# sns.set_style("darkgrid")
+# plot_1 = sns.relplot(kind="line",
+#     height = 5, aspect = 0.8, # col='N', 
+#     x="BR_Iteration", y='value', errorbar=("se", 5), hue='variable', # style='type', 
+#     data=pd.melt(trial_data, ['BR_Iteration', 'Action Entropy', 'Horizon T', 'Trial',
+#                               'P1 s_0','P2 s_0','P1 s_T','P2 s_T']),
+#     palette=sns.color_palette(),
+# );  plt.xscale('log'); plt.yscale('log'); plt.show(block=False);
 
+# # ------------- visualization --------------------- #
+# total_player_costs = np.zeros(Columns * Rows)
+# total_player_costs[targ_raw_inds] = 1.
+# color_map, norm, _ = vs.color_map_gen(total_player_costs) 
 
-# reachability: 
-Vs = [None for _ in range(player_num)]
-pis = [None for _ in range(player_num)]
-for p in range(player_num):
-    V, pi = vi.finite_reachability(Ps[0], T, targ_raw_inds[p])
-    Vs[p] = V
-    pis[p] = pi    
-
-# visualization
-total_player_costs = np.zeros(Columns * Rows)
-total_player_costs[targ_raw_inds] = 1.
-color_map, norm, _ = vs.color_map_gen(total_player_costs) 
-
-ax, value_grids, f = vs.init_grid_plot(Rows, Columns, total_player_costs)
-plt.show(block=False)
+# ax, value_grids, f = vs.init_grid_plot(Rows, Columns, total_player_costs)
+# plt.show(block=False)
 
  
-# print('visualizing now')
-vs.animate_traj(f'traj_ouput_{int(time.time())}.mp4', f, initial_locs, pis, 
-                total_player_costs, value_grids, Rows, Columns, Ps, Time=T-1)
+# # # print('visualizing now')
+# vs.animate_traj(f'traj_ouput_{int(time.time())}.mp4', f, x_0s, pis, 
+#                 total_player_costs, value_grids, Rows, Columns, Ps, Time=T)
 
 
 
