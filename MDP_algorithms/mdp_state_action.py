@@ -3,7 +3,7 @@
 import numpy as np
 import util as ut
 import random
-
+from itertools import product
 
 """
     Returns a rectangular MDP that is non-ergodic
@@ -25,6 +25,7 @@ def transitions(M, N, p, with_stay=False):
             stay = i*N +j
             
             valid = []
+            # if with_stay: valid.append(s)
             if s%N != 0:
                 valid.append(left)
             if s%N != N-1:
@@ -36,10 +37,37 @@ def transitions(M, N, p, with_stay=False):
     
             lookup = {0: left, 1: right, 2: top, 3: bottom, 4:stay}
             for a in range(A):
-                P[:,s,a] = ut.nonergodic_p(a, S, p, valid, lookup, s)   
-    return P; 
+                P[:,s,a] = ut.nonergodic_p(a, S, p, valid, lookup, s)
+    return P
+
+def reachable_set(P):
+    S, _, A  = P.shape
+    reachable_set = {(s,a): [sp for sp in range(S) if P[sp, s,a] > 0]
+                     for s,a in product(range(S), range(A))}
+    return reachable_set
 
 
+                
+def reachable_group_set(Pj, p_num,s=None):
+    S, _, A  = Pj.shape
+    reach_j  = reachable_set(Pj)
+    group_set  = []
+    hats_list = []
+    if s != None:
+        s_list = [s]
+        for s_all, a in product(s_list, range(A)):
+            hats_list += [reach_j[s_all[j],a] for j in range(p_num)]
+            
+        group_set += [hats for hats in ut.cartesian_product(hats_list)]    
+    else:
+        s_list = [s_all for s_all in product(range(S), repeat=p_num)]
+        for s_all, a in product(s_list, range(A)):
+            hats_list += [reach_j[s_all[j],a] for j in range(p_num)]
+            
+        group_set += [(s_all, hats_all) 
+                                    for hats_all in ut.cartesian_product(hats_list)]    
+    return group_set
+                
 def cost(S, A, T, target_s,  minimize=True):
     C = np.ones((S, A, T+1)) if minimize else np.zeros((S, A, T+1))
     # if minimize:

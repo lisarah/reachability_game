@@ -6,6 +6,16 @@ Created on Tue Sep 10 15:30:56 2019
 """
 import numpy as np
 
+
+def cartesian_product(lists):
+    if not lists:
+        yield ()
+    else:
+        for a in lists[0]:
+            for num in cartesian_product(lists[1:]):
+                yield (a,) + num
+                
+                
 def random_initial_policy_finite(S, A, T, player_num):
     policy = np.zeros((S, S*A, T, player_num)) # S x A
     # random initial policy
@@ -25,6 +35,7 @@ def scrolling_policy(S, A, T, player_num): # always go to the right/left
                 for p in range(player_num):
                     policy[s, s*A + actions[p], t, p] = 1.
     return policy
+
 
 def scrolling_policy_flat(S, T): # always go to the right/left
     policy = np.zeros((S, T)) # S x A

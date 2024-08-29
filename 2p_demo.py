@@ -53,7 +53,7 @@ trial_data = pd.DataFrame({})
 
 change_horizon = [(0.9, 5*i+1) for i in range(10)]
 change_entropy = [(0.1*(i+1), 15) for i in range(10)]
-for action_entropy, T in change_horizon:
+for action_entropy, T in change_entropy:
     MCs = 100 # monte carlo trials
     
     # ----- defining MDP -----#
@@ -98,33 +98,33 @@ for action_entropy, T in change_horizon:
                     no_collisions.append(no_col)
         trial_potentials.append(potential)
         trial_no_collisions.append(no_collisions)
-        trial_data = pd.concat([trial_data, pd.DataFrame({
-            'Trial': [tr]*len(potential), 
-            'BR_Iteration': [i for i in range(len(potential))],
-            'Potential': [p for p in potential],
-            'Collision': [1 - no_col for no_col in no_collisions],
-            'Horizon':[T]*len(potential),
-            'Action Entropy':[action_entropy]*len(potential), 
-            'P1 s_0': [x_0s[0]]*len(potential),
-            'P2 s_0': [x_0s[1]]*len(potential),
-            'P1 s_T': [x_0s[0]]*len(potential),
-            'P2 s_T': [x_0s[1]]*len(potential)})], ignore_index=True)
         # trial_data = pd.concat([trial_data, pd.DataFrame({
-        #     'Trial': [tr]*len(potential)*2, 
-        #     'BR_Iteration': [i for i in range(len(potential))]*2,
-        #     'Probability': [p for p in potential] + [1 - no_col for no_col in no_collisions],
-        #     'Metric' : ['Potential']*len(potential) + ['Collision Likelihood']*len(potential),
-        #     'Horizon':[T]*2*len(potential),
-        #     'Action Entropy':[action_entropy]*len(potential)*2, 
-        #     'P1 s_0': [x_0s[0]]*len(potential)*2,
-        #     'P2 s_0': [x_0s[1]]*len(potential)*2,
-        #     'P1 s_T': [x_0s[0]]*len(potential)*2,
-        #     'P2 s_T': [x_0s[1]]*len(potential)*2})], ignore_index=True)
+        #     'Trial': [tr]*len(potential), 
+        #     'BR_Iteration': [i for i in range(len(potential))],
+        #     'Potential': [p for p in potential],
+        #     'Collision': [1 - no_col for no_col in no_collisions],
+        #     'Horizon':[T]*len(potential),
+        #     'Action Entropy':[action_entropy]*len(potential), 
+        #     'P1 s_0': [x_0s[0]]*len(potential),
+        #     'P2 s_0': [x_0s[1]]*len(potential),
+        #     'P1 s_T': [x_0s[0]]*len(potential),
+        #     'P2 s_T': [x_0s[1]]*len(potential)})], ignore_index=True)
+        trial_data = pd.concat([trial_data, pd.DataFrame({
+            'Trial': [tr]*len(potential)*2, 
+            'BR_Iteration': [i for i in range(len(potential))]*2,
+            'Value': [p for p in potential] + [1 - no_col for no_col in no_collisions],
+            'Metric' : ['Potential']*len(potential) + ['Collision Likelihood']*len(potential),
+            'Horizon':[T]*2*len(potential),
+            'Action Entropy':[action_entropy]*len(potential)*2, 
+            'P1 s_0': [x_0s[0]]*len(potential)*2,
+            'P2 s_0': [x_0s[1]]*len(potential)*2,
+            'P1 s_T': [x_0s[0]]*len(potential)*2,
+            'P2 s_T': [x_0s[1]]*len(potential)*2})], ignore_index=True)
     
 sns.set_style("darkgrid")
-plot_1 = sns.relplot(kind="line",
-    height = 5, aspect = 1.5, # col='N', 
-    x="BR_Iteration", y='Collision', hue='Horizon', # style='type',   errorbar=("se", 5), 
+sns.relplot(kind="line",
+    col='Metric', height = 4, aspect = 0.9,
+    x="BR_Iteration", y='Value', hue='Action Entropy', # style='type',   errorbar=("se", 5), 
     data=trial_data,
     # palette=sns.color_palette(),
 );plt.show(block=False); # plt.yscale('log'); # plt.xscale('log');  #  
