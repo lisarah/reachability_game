@@ -42,12 +42,12 @@ pols = [ut.scrolling_policy_flat(S,  T) for _ in range(player_num)]
 
 # # ----- setting target state/initial state ------ #
 # # initialize the raw target and initial states of each player
-# start_raw_inds = np.array([0,6])
-# targ_raw_inds = np.array([2,8])     
-targs_initial_states = np.random.choice(range(Columns*Rows), 
-                             size=player_num*2, replace=False) 
-targ_raw_inds = targs_initial_states[:player_num]           
-start_raw_inds = targs_initial_states[player_num:]    
+start_raw_inds = np.array([0,6])
+targ_raw_inds = np.array([2,8])     
+# targs_initial_states = np.random.choice(range(Columns*Rows), 
+#                              size=player_num*2, replace=False) 
+# targ_raw_inds = targs_initial_states[:player_num]           
+# start_raw_inds = targs_initial_states[player_num:]    
 
 # turn targets into sinks (change transition)
 for p in range(player_num):
@@ -60,11 +60,12 @@ rhos = [mdp.occupancy(pols[p], Ps[p],  start_raw_inds[p])
 # # # ----- evaluating  the potential and setting up value functions  ------ #
 # # # current safety value: multiplicative_potential(policies, targs, S, P, rhos)
 # # # iterative best response
-V = np.zeros((S**player_num,T))
-potential = [game.multiplicative_potential(pols, targ_raw_inds, Ps, rhos, 
-                                           reachable_set)]
+V, no_col = game.multiplicative_potential(
+    pols, targ_raw_inds, Ps, rhos, reachable_set)
+no_col_prob = [no_col]
+potential = [V]
 
-BR_iter = 20
+BR_iter = 1
 p = 0
 for ind in range(BR_iter):
     p = (p + 1) % player_num
@@ -73,10 +74,11 @@ for ind in range(BR_iter):
         pols, targ_raw_inds, start_raw_inds,   Ps, rhos, p, reachable_set)
     pols[p] = new_pi
     rhos[p] = new_rho
-    new_pot = game.multiplicative_potential(
+    new_pot, no_col_rate = game.multiplicative_potential(
         pols, targ_raw_inds, Ps, rhos, reachable_set)
     print(f' new potential is {new_pot}')
     potential.append(new_pot)
+    no_col_prob.append(no_col_rate)
     # if potential[-1] == potential[-2]:
     #     break
 print(potential)                

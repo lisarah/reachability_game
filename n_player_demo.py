@@ -58,7 +58,7 @@ plt.rcParams.update({
 Columns = 10
 Rows = 5
 T = 15
-player_num = 3
+player_num = 2
 
 # set up trial
 trial_potentials = []
@@ -70,18 +70,16 @@ br_eval_time = []
 # change_horizon = [(0.9, 5*i+1) for i in range(10)]
 # change_entropy = [(0.1*(i+1), 15) for i in range(10)]
 # for action_entropy, T in change_entropy:
-MCs = 3 # monte carlo trials
+MCs = 20 # monte carlo trials
 action_entropy = 0.95
 # ----- defining MDP -----#
-Ps = [mdp.transitions(Rows, Columns, p=action_entropy, with_stay=True) 
-      for _ in range(player_num)]
-reachable_set = mdp.reachable_set(Ps[0])
-
-S, _, A = Ps[0].shape
+P_template = mdp.transitions(Rows, Columns, p=action_entropy, with_stay=True) 
+reachable_set = mdp.reachable_set(P_template)
+S, _, A = P_template.shape
 
 
 # T policies for T+1 occupancy measures
-pols = [ut.scrolling_policy_flat(S,  T) for _ in range(player_num)] 
+# pols = [ut.scrolling_policy_flat(S,  T) for _ in range(player_num)] 
 for tr in range(MCs):
     print(f' trial {tr} ------')
     # ----- setting target state/initial state ------ #
@@ -95,13 +93,23 @@ for tr in range(MCs):
     start_raw_inds = sorted(list(initial_inds), reverse=True)
     print(f'initial_inds = {start_raw_inds}')
     print(f'target_inds = {targ_raw_inds}')
+    rhos = []
+    pols = []
+    Ps = []
     # turn targets into sinks (change transition)
     for p in range(player_num):
+        # define new transition
+        Ps.append(P_template.copy())
         Ps[p][:, targ_raw_inds[p], 4] = np.zeros((S))
         Ps[p][targ_raw_inds[p], targ_raw_inds[p], 4] = 1.
-        
-    rhos = [mdp.occupancy(pols[p], Ps[p],  start_raw_inds[p]) 
-            for p in range(player_num)]
+        # define target state
+        c = np.zeros(S)
+        c[targ_raw_inds[p]] = 1.
+        # run single agent value iteration
+        Vk, new_pi  = vi.value_iteration(Ps[p], c, T)
+        # initialize optimal policy and occupancy measure
+        pols.append(new_pi) # the single agent optimal policy
+        rhos.append(mdp.occupancy(pols[p], Ps[p],  start_raw_inds[p]))
     
     # ----- evaluating  the potential and setting up value functions  ------ #
     # current safety value: multiplicative_potential(policies, targs, S, P, rhos)
@@ -109,40 +117,38 @@ for tr in range(MCs):
     V = np.zeros((S**player_num,T))
     potential = []
     no_collisions = []
-    begin_t = time.time()
-    V, no_col_rate = game.multiplicative_potential(pols, targ_raw_inds, Ps, rhos, reachable_set)
-    end_t = time.time()
-    print(f' potential evaluation time is {end_t - begin_t} seconds')
-    potential_eval_time.append(end_t - begin_t)
-    potential.append(V)
-    no_collisions.append(no_col_rate)
+    # begin_t = time.time()
+    # V, no_col_rate = game.multiplicative_potential(pols, targ_raw_inds, Ps, rhos, reachable_set)
+    # end_t = time.time()
+    # print(f' potential evaluation time is {end_t - begin_t} seconds')
+    # potential_eval_time.append(end_t - begin_t)
+    # potential.append(V)
+    # no_collisions.append(no_col_rate)
     
-    BR_iter = 5
+    BR_iter = 6
+    p = -1
     for ind in range(BR_iter):
         print(f' --- bR iter {ind} ---')
-        for p in range(player_num):
-            # opponent = (p+1)%player_num
-            # opp_pol = pols[opponent]
-            begin_t = time.time()
-            Vk, new_pi, new_rho  = vi.multiplicative_vi(
-                pols, targ_raw_inds, start_raw_inds, Ps, rhos, p, reachable_set)
-            end_t = time.time()
-            print(f' BR time is {end_t - begin_t} seconds')
-            br_eval_time.append(end_t - begin_t)
-            pols[p] = new_pi  
-            rhos[p] = new_rho 
-            
-            begin_t = time.time()
-            V, no_col_rate = game.multiplicative_potential(
-                pols, targ_raw_inds, Ps, rhos, reachable_set)
-            end_t = time.time()
-            print(f' potential evaluation time is {end_t - begin_t} seconds')
-            potential_eval_time.append(end_t - begin_t)
-            potential.append(V)
-            no_collisions.append(no_col_rate)
-                
-            # if isinstance(rhos[0], np.ndarray) and isinstance(targs_initial_states[1], np.ndarray):
-            #     pot, no_col = game.potential(rhos, targ_raw_inds)
+        p = (p + 1) % player_num
+        begin_t = time.time()
+        V, no_col_rate, W = game.multiplicative_values(
+            p, pols, targ_raw_inds, Ps, rhos, reachable_set)
+        end_t = time.time()
+        print(f' value formation time is {np.round(end_t - begin_t, 2)} seconds')
+        potential_eval_time.append(end_t - begin_t)
+        print(f' potential value is {np.round(V, 8)}')
+        
+        begin_t = time.time()
+        Vp, new_pi = vi.net_value_iteration(Ps[p], W)
+        new_rho = mdp.occupancy(new_pi, Ps[p],  start_raw_inds[p]) 
+        end_t = time.time()
+        print(f' value iteration time is {np.round(end_t - begin_t, 2)}  seconds')
+        br_eval_time.append(end_t - begin_t)
+        pols[p] = new_pi  
+        rhos[p] = new_rho 
+        
+        potential.append(V)
+        no_collisions.append(no_col_rate)
 
     trial_potentials.append(potential)
     trial_no_collisions.append(no_collisions)
@@ -163,11 +169,8 @@ for tr in range(MCs):
         'Value': [p for p in potential] + [no_col for no_col in no_collisions],
         'Metric' : ['Potential']*len(potential) + ['Collision Likelihood']*len(potential),
         'Horizon':[T]*2*len(potential),
-        'Action Entropy':[action_entropy]*len(potential)*2, 
-        'P1 s_0': [start_raw_inds[0]]*len(potential)*2,
-        'P2 s_0': [start_raw_inds[1]]*len(potential)*2,
-        'P1 s_T': [targ_raw_inds[0]]*len(potential)*2,
-        'P2 s_T': [targ_raw_inds[1]]*len(potential)*2})], ignore_index=True)
+        'Action Entropy':[action_entropy]*len(potential)*2})], 
+        ignore_index=True)
     
 sns.set_style("darkgrid")
 sns.relplot(kind="line",
@@ -176,21 +179,21 @@ sns.relplot(kind="line",
     data=trial_data,
     # palette=sns.color_palette(),
 );plt.show(block=False); plt.yscale('log'); # plt.xscale('log');  #  
-plot_1 = sns.relplot(kind="line",
-    height = 5, aspect = 1.5, # col='N', 
-    x="BR_Iteration", y='Probability', hue='Metric', # style='type',   errorbar=("se", 5), 
-    data=trial_data,
-    # palette=sns.color_palette(),
-);  plt.show(block=False); plt.yscale('log');  # plt.xscale('log'); #  
+# plot_1 = sns.relplot(kind="line",
+#     height = 5, aspect = 1.5, # col='N', 
+#     x="BR_Iteration", y='Probability', hue='Metric', # style='type',   errorbar=("se", 5), 
+#     data=trial_data,
+#     # palette=sns.color_palette(),
+# );  plt.show(block=False); plt.yscale('log');  # plt.xscale('log'); #  
 
-sns.set_style("darkgrid")
-plot_1 = sns.relplot(kind="line",
-    height = 5, aspect = 0.8, # col='N', 
-    x="BR_Iteration", y='Value', errorbar=("se", 5), hue='variable', # style='type', 
-    data=pd.melt(trial_data, ['BR_Iteration', 'Action Entropy', 'Horizon T', 'Trial',
-                              'P1 s_0','P2 s_0','P1 s_T','P2 s_T']),
-    palette=sns.color_palette(),
-);  plt.xscale('log'); plt.yscale('log'); plt.show(block=False);
+# sns.set_style("darkgrid")
+# plot_1 = sns.relplot(kind="line",
+#     height = 5, aspect = 0.8, # col='N', 
+#     x="BR_Iteration", y='Value', errorbar=("se", 5), hue='variable', # style='type', 
+#     data=pd.melt(trial_data, ['BR_Iteration', 'Action Entropy', 'Horizon T', 'Trial',
+#                               'P1 s_0','P2 s_0','P1 s_T','P2 s_T']),
+#     palette=sns.color_palette(),
+# );  plt.xscale('log'); plt.yscale('log'); plt.show(block=False);
 
 # # ------------- visualization --------------------- #
 # total_player_costs = np.zeros(Columns * Rows)
