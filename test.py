@@ -23,7 +23,7 @@ from itertools import product, combinations, permutations
 Columns = 10
 Rows = 5
 T = 15
-player_num = 4
+player_num = 3
 """
 # test  two players with independent transitions 
     - both players start with optimal solution
@@ -58,6 +58,7 @@ start_raw_inds = np.array([20, 10, 0, 5])
 # turn targets into sinks (change transition)
 for p in range(player_num):
     # define new transition
+    print(f' \r initializing player {p+1}/{player_num}  ', end='')
     Ps[p][:, targ_raw_inds[p], 4] = np.zeros((S))
     Ps[p][targ_raw_inds[p], targ_raw_inds[p], 4] = 1.
     # define target state

@@ -26,7 +26,7 @@ def assign_next_V(t, s, valid_hat_s, prev_V, policies, P):
         for hat_s in valid_hat_s])
     return V_s
 
-def next_W(i, t, s, valid_hat_s, prev_V, policies, P,rhos):
+def next_W(i, t, s, valid_hat_s, prev_V, policies, P, rhos, eps):
     # print(f' policy length {len(policies)} player {i}')
     N_opp = [j for j in range(len(policies)) if j != i]
     Slen, _, _ = P[0].shape
@@ -39,7 +39,7 @@ def next_W(i, t, s, valid_hat_s, prev_V, policies, P,rhos):
         W_s_hat_s = prev_V[hat_s]*np.prod([
             P[j][hat_s[j],s[j],int(policies[j][s[j],t])]*rhos[j][s[j], t] 
             for j in N_opp])
-        if W_s_hat_s >= (1e-2)**(t+2):
+        if W_s_hat_s >= eps:
             Wt[int(hat_s[i]), int(s[i])] += W_s_hat_s
     return Wt
     # print(f' current opponent policy {rhos[1][s[1], t] }')
@@ -77,15 +77,18 @@ def multiplicative_values(i, policies, targs, P, rhos, reachable_set):
     # print({k: np.round(v, 2) for k, v in V[v_ind].items()})
     for t in range(T-1, -1, -1):
         # collision free combinations of (s_1,...s_N)
+        eps = (1e-2)**(0.75*t+3)
         counter = 0
         v_ind = (v_ind + 1) % 2 
         v_prev = (v_ind + 1) % 2 
         # permutations don't count repeates (s_i never equal to s_j)
         for s in permutations(range(S), N):
-            print(f' \r t = {t} \t\t  onto states {counter}/{S**N}    ', end='')
+            if counter % 1000 == 0:
+                print(f' \r t = {t} \t\t  onto states {counter}/{S**N} '
+                      f' value dict size {len(V[v_ind])}  ', end='')
             counter += 1
             prod_rho = np.prod([rhoj[sj, t] for rhoj, sj in zip(rhos, s)]) 
-            if prod_rho <=  1e-10:
+            if prod_rho <= eps:
                 V_s = 0
                 col_V_s = 0
             else:
@@ -112,7 +115,7 @@ def multiplicative_values(i, policies, targs, P, rhos, reachable_set):
                 col_V_s = assign_next_V(
                     t, s, valid_hat_s_col, collision_V[v_prev], policies, P)
                 W[:, :, t] += next_W(i, t, s, valid_hat_s, V[v_prev], policies, 
-                                     P, rhos)
+                                     P, rhos, eps)
 
                 # W[s[i], t] += np.prod([
                 #     rhos[j][s[j], t] for rhoj, sj in zip(rhos, s)])*next_W(
@@ -120,11 +123,11 @@ def multiplicative_values(i, policies, targs, P, rhos, reachable_set):
                 # V_s = np.sum([V[v_prev][hat_s]*np.prod([Pj[hat_sj,sj,int(pi[sj,t])] 
                 #     for Pj, hat_sj, sj, pi in zip(P, hat_s, s, policies)]) 
                 #     for hat_s in valid_hat_s])
-            if V_s > (1e-1)**(t+3):
+            if V_s > eps:
                 V[v_ind][s] = V_s
             elif s in V[v_ind].keys():
                 del V[v_ind][s]    
-            if col_V_s > 0:
+            if col_V_s > eps:
                 collision_V[v_ind][s] = col_V_s
             elif s in collision_V[v_ind].keys():
                 del collision_V[v_ind][s]     
@@ -132,13 +135,17 @@ def multiplicative_values(i, policies, targs, P, rhos, reachable_set):
                 #     for Pj, hat_sj, sj, pi in zip(P, hat_s, s, policies)]) 
                 #     for hat_s in valid_hat_s_col])
 
-        
+    print(f' \r final  value dict size {len(V[v_ind])}  ')    
     total_V = np.sum([V[v_ind][s]*np.prod([rho_i[si, 0] 
                                            for rho_i, si in zip(rhos, s)])
                       for s in V[v_ind].keys()])
     total_col_V = np.sum([collision_V[v_ind][s]*np.prod([rho_i[si, 0] 
                                            for rho_i, si in zip(rhos, s)])
                       for s in collision_V[v_ind].keys()])
+    V[0].clear()
+    V[1].clear()
+    collision_V[0].clear()
+    collision_V[1].clear()
     return total_V, total_col_V, W
 
 
