@@ -31,7 +31,7 @@ os.environ["PATH"] = os_path
 
 """ Format matplotlib output to be latex compatible with gigantic fonts."""
 mpl.rc('font',**{'family':'serif'})
-mpl.rc('text', usetex=True) # change this back later, latex not found here.
+mpl.rc('text', usetex=False) # change this back later, latex not found here.
 mpl.rcParams.update({'font.size': 15})
 mpl.rc('legend', fontsize='small')
 # plt.rcParams.update(plt.rcParamsDefault)
@@ -41,9 +41,9 @@ mpl.rc('legend', fontsize='small')
 #     'font.size':15
 # })
 
-Columns = 10
-Rows = 5
-T = 20
+Columns = 4
+Rows = 4
+T = 10
 player_num = 2
 
 # set up trial
@@ -52,7 +52,7 @@ trial_no_collisions = []
 trial_data = pd.DataFrame({})
 
 change_horizon = [(0.9, 5*i+1) for i in range(10)]
-change_entropy = [(0.1*(i+1), 15) for i in range(10)]
+change_entropy = [(0.1*(i+1), T) for i in range(10)]
 for action_entropy, T in change_entropy:
     MCs = 100 # monte carlo trials
     
@@ -115,7 +115,8 @@ for action_entropy, T in change_entropy:
             'Value': [p for p in potential] + [1 - no_col for no_col in no_collisions],
             'Metric' : ['Potential']*len(potential) + ['Collision Likelihood']*len(potential),
             'Horizon':[T]*2*len(potential),
-            'Action Entropy':[action_entropy]*len(potential)*2, 
+            #'Action Entropy':[action_entropy]*len(potential)*2, 
+            'Action Entropy': [str(round(action_entropy, 2))] * len(potential) * 2,
             'P1 s_0': [x_0s[0]]*len(potential)*2,
             'P2 s_0': [x_0s[1]]*len(potential)*2,
             'P1 s_T': [x_0s[0]]*len(potential)*2,

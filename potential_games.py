@@ -17,7 +17,7 @@ def potential(xs, targs):
     P_no_collide = 1
     for t in range(T-1):
         P_collide = xs[0][:,t].dot(xs[1][:,t])
-        P_no_collide = P_no_collide* P_no_collide*(1 - P_collide)
+        P_no_collide = P_no_collide*P_no_collide*(1 - P_collide)
     return P_targ*P_no_collide, P_no_collide
 
 def assign_next_V(t, s, valid_hat_s, prev_V, policies, P):

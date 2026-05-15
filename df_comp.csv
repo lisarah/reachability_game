@@ -1,0 +1,15 @@
+Grid Size,Time,Method
+2,0.005,Global Optimal
+2,0.2321722507476806,Local Feedback
+3,0.09,Global Optimal
+3,0.2357020378112793,Local Feedback
+4,0.785,Global Optimal
+4,0.3120417594909668,Local Feedback
+5,5.19,Global Optimal
+5,0.3548641204833984,Local Feedback
+6,24.045,Global Optimal
+6,0.4623284339904785,Local Feedback
+7,86.6,Global Optimal
+7,0.5449554920196533,Local Feedback
+8,268.015,Global Optimal
+8,0.7779595851898193,Local Feedback

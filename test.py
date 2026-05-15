@@ -25,7 +25,7 @@ Rows = 5
 T = 15
 player_num = 3
 """
-# test  two players with independent transitions 
+# test two players with independent transitions 
     - both players start with optimal solution
     - player 1 should get to an individual optimal route
     - potential should be maximum 
