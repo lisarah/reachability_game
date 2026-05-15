@@ -628,43 +628,32 @@ class Local_MDP_aug:
     # ------------------------------------------------------------------
 
     def _best_response(self, i, pols, rhos):
-        """
-        Computes player i's best response policy given fixed opponent policies.
+       
+        #Computes player i's best response policy given fixed opponent policies.
 
-        Implements Algorithm 2 from the paper:
-          - Forward pass: compute opponent occupancy measures rho^t_{-i}
-          - Backward pass: compute W^t_i(s_i) — player i's marginalized
-            value function — via the multiplicative DP over the joint space,
-            averaging out opponents with their occupancy measures.
+        #Implements Algorithm 2 from the paper:
+        #  - Forward pass: compute opponent occupancy measures rho^t_{-i}
+        #  - Backward pass: compute W^t_i(s_i) — player i's marginalized
+        #    value function — via the multiplicative DP over the joint space,
+        #    averaging out opponents with their occupancy measures.
 
-        Parameters
-        ----------
-        i     : int         — index of the player computing best response
-        pols  : list of (S, T) arrays — current policies for all players
-        rhos  : list of (S, T+1) arrays — current occupancy measures
-
-        Returns
-        -------
-        W_i   : (S, T+1) array — player i's local value function
-        pi_i  : (S, T)   array — player i's best response policy
-        """
+        
+        #W_i is an (S, T+1) array — player i's local value function
+        #pi_i is an (S, T)   array — player i's best response policy
+      
         N     = self.player_num
         S     = self.S
         T     = self.T
         N_opp = [j for j in range(N) if j != i]
 
-        # ------ Forward pass: occupancy measures for opponents (lines 4-9) ------
-        # rho^{t+1}_j(s'_j) = sum_{s_j} P_j(s'_j | s_j, pi^t_j(s_j)) * rho^t_j(s_j)
-        # We propagate each opponent's occupancy forward using their current policy.
-        # rhos[j] is already computed externally and passed in — we use it directly.
+        # propagate each opponent's occupancy forward using their current policy.
+        # rhos[j] is already computed externally and passed in.
 
-        # ------ Backward pass: multiplicative DP (lines 11-22) ------
+        # Backward pass: multiplicative DP lines 11-22
         # V^T_pi(s) = prod_j X_j(s^T_j) * prod_{i,j} Y_ij(s_i, s_j)
         # W^t_i(s_i) = sum_{s_{-i}} rho^t_{-i}(s_{-i}) * V^t_pi(s_i, s_{-i})
 
-        # Terminal joint value function: sparse dict over collision-free,
-        # all-at-target joint states. Value = 1, all others = 0.
-        # This is V^T_pi from equation (20) in the paper.
+        # Terminal joint value function This is V^T_pi from equation (20) in the paper.
         v_ind  = 0
         v_prev = 1
         V = [{}, {}]
@@ -742,7 +731,7 @@ class Local_MDP_aug:
                             tau[t][j][hat_s_s[j if j < i else j]]
                             for j in N_opp
                         ])
-                        # Simpler direct indexing:
+                        # indexing:
                         opp_density = 1.0
                         for j in N_opp:
                             idx = j if j < i else j  # position in hat_s_s after insert
@@ -810,18 +799,16 @@ class Local_MDP_aug:
     # ------------------------------------------------------------------
 
     def local_value_iteration(self, BR_iter=10, tol=1e-5):
-        """
-        Implements Algorithm 3: Iterative Best Response.
+        
+        #Implements Algorithm 3: Iterative Best Response.
 
-        Each agent computes its best response in turn (round-robin) until
-        the potential value converges, yielding a deterministic Nash equilibrium
-        in the local feedback policy space.
+        # Each agent computes its best response in until
+        # the potential value converges
+         
+        # run this until it returns a deterministic Nash equilibrium
+        # in the local feedback policy space.
 
-        Parameters
-        ----------
-        BR_iter : int   — maximum number of full rounds (each player updates once)
-        tol     : float — convergence threshold on potential value change
-        """
+        
         print("-" * 40)
         print("Starting iterative best response (Algorithm 3)...")
         time_start = time.time()
@@ -873,11 +860,11 @@ class Local_MDP_aug:
     # ------------------------------------------------------------------
 
     def _compute_potential_from_W(self):
-        """
-        F(pi) = sum_s prod_i rho^0_i(s_i) * V^0_pi(s)
-        Approximated from W_i values at t=0 weighted by initial occupancy.
-        Uses the joint value function structure from Proposition 1.
-        """
+        
+        #F(pi) = sum_s prod_i rho^0_i(s_i) * V^0_pi(s)
+        #Approximated from W_i values at t=0 weighted by initial occupancy.
+        #Uses the joint value function structure from Proposition 1.
+        
         S = self.S
         N = self.player_num
 
@@ -954,16 +941,16 @@ class Local_MDP_aug:
         self.potential_value = V.get(start_s, 0.0)
 
     def get_collision_likelihood(self):
-        """
-        Collision likelihood = E[1 - prod_{t=0}^{T} prod_{i,j} Y_ij(s^t_i, s^t_j)]
-                                | tau_j ~ h_j(pi*_j)]
+        
+       # Collision likelihood = E[1 - prod_{t=0}^{T} prod_{i,j} Y_ij(s^t_i, s^t_j)]
+                                #| tau_j ~ h_j(pi*_j)]
 
-        Equation (27) of the paper: probability that at least one collision
-        occurs at any timestep along the trajectory.
+        #Equation (27) of the paper: probability that at least one collision
+        #occurs at any timestep along the trajectory.
 
-        Computed via forward occupancy propagation over collision-free states only,
-        then collision_likelihood = 1 - P(no collision at any timestep).
-        """
+        #Computed via forward occupancy propagation over collision-free states only,
+        #then collision_likelihood = 1 - P(no collision at any timestep).
+        
         S      = self.S
         N      = self.player_num
 
@@ -1006,20 +993,19 @@ class Local_MDP_aug:
         self._mu_safe_final   = mu_safe  # store for reach reduction
 
     def get_reach_reduction(self):
-        """
-        Reach reduction = E[prod_j X_j(s^T_j) | tau_j ~ h_j(pi*_j)]
-                        / prod_j E[X_j(s^T_j) | tau_j ~ h_j(pi^single_j)]
+        # Reach reduction = E[prod_j X_j(s^T_j) | tau_j ~ h_j(pi*_j)]
+        #                / prod_j E[X_j(s^T_j) | tau_j ~ h_j(pi^single_j)]
 
-        Equation (28) of the paper: ratio of the joint reach probability under
-        the Nash policy to the product of individual optimal reach probabilities.
-        Numerator  — joint probability all agents reach targets collision-free.
-        Denominator — product of single-agent optimal reach probabilities.
+        # Equation (28) of the paper: ratio of the joint reach probability under
+        # the Nash policy to the product of individual optimal reach probabilities.
+        # Numerator  — joint probability all agents reach targets collision-free.
+        # Denominator — product of single-agent optimal reach probabilities.
 
-        Requires get_collision_likelihood() to have been called first
-        (uses self._mu_safe_final).
-        """
-        if not hasattr(self, '_mu_safe_final'):
-            self.get_collision_likelihood()
+        #Requires get_collision_likelihood() to have been called first
+        #(uses self._mu_safe_final).
+        
+        # if not hasattr(self, '_mu_safe_final'):
+        #     self.get_collision_likelihood()
 
         N = self.player_num
 
@@ -1044,7 +1030,7 @@ class Local_MDP_aug:
             self.reach_reduction = 0.0
 
     def get_all_metrics(self):
-        """Convenience method: compute all three paper metrics in sequence."""
+        #compute all three paper metrics in sequence.
         self.get_potential()
         self.get_collision_likelihood()
         self.get_reach_reduction()
@@ -1054,11 +1040,10 @@ class Local_MDP_aug:
     # ------------------------------------------------------------------
 
     def highest_prob_trajectory(self):
-        """
-        Greedily follows the most probable next state at each timestep
-        for each player under their converged local policy.
-        Stores result in self.traj as a list of joint state tuples.
-        """
+        #follows the most probable next state at each timestep
+        #for each player under their converged local policy.
+        #Stores result in self.traj as a list of joint state tuples.
+        
         current_s = tuple(self.x_0s)
         self.traj = [current_s]
 
@@ -1076,9 +1061,9 @@ class Local_MDP_aug:
             self.traj.append(current_s)
 
     def plot_occupancy_grid(self):
-        """
-        Plots grid with start/target markers and overlaid greedy trajectories.
-        """
+        
+        #Plots grid with start/target markers and overlaid greedy trajectories.
+        
         if not hasattr(self, 'traj'):
             self.highest_prob_trajectory()
 
